@@ -3,10 +3,12 @@ const c = canvas.getContext('2d')
 
 const PLANE_VELOCITY = 5
 const PROJECTILE_VELOCITY = 8
+const ASTROID_VELOCITY = 3
 const ROTATION = 0.08
 const FRICTION = 0.97
 
 const projectiles = []
+const astroids = []
 
 canvas.width = window.innerWidth
 canvas.height = window.innerHeight
@@ -89,6 +91,28 @@ class Projectile {
     }
 }
 
+class Astroid {
+    constructor({position, velocity, radius}) {
+        this.position = position
+        this.velocity = velocity
+        this.radius = radius
+    }
+
+    draw() {
+        c.beginPath()
+        c.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2)
+        c.closePath()
+        c.strokeStyle = 'white'
+        c.stroke()
+    }
+
+    update() {
+        this.position.x += this.velocity.x
+        this.position.y += this.velocity.y
+        this.draw()
+    }
+}
+
 const player = new Player({
     position: { x: canvas.width / 2, y: canvas.height / 2 },
     velocity: { x: 0, y: 0 }
@@ -107,6 +131,90 @@ const keys = {
         pressed: false
     }
 }
+
+window.setInterval(() => {
+    const index =  Math.floor(Math.random() * 4)
+    let new_position_x, new_position_y
+    let new_velocity_x, new_velocity_y
+    let new_radius = 50 * Math.random() + 10
+
+    switch (index) {
+        // left side
+        case 0:
+            new_position_x = 0 - new_radius
+            new_position_y = Math.random() * canvas.height
+            break
+        // right side
+        case 1:
+            new_position_x = canvas.width + new_radius
+            new_position_y = Math.random() * canvas.height
+            break
+        // top side
+        case 2:
+            new_position_x = Math.random() * canvas.width
+            new_position_y = 0 - new_radius
+            break
+        // bottom side
+        case 3:
+            new_position_x = Math.random() * canvas.width
+            new_position_y = canvas.height + new_radius
+            break
+    }
+
+    const left = new_position_x <= canvas.width / 2
+    const right = new_position_x > canvas.width / 2
+    const top = new_position_y <= canvas.height / 2
+    const bottom = new_position_y > canvas.height / 2
+    const horizantally = Math.abs((new_position_x - canvas.width / 2) / (canvas.height / 2))
+    const vertically = Math.abs((new_position_y - canvas.height / 2) / (canvas.height / 2) )
+
+    // Astroids Target: Center
+    // const horizantally = 1
+    // const vertically = 1
+
+
+    // if (top && left) {
+    //     // top left
+    //     new_velocity_x = 1 * horizantally
+    //     new_velocity_y = 1 * vertically
+    // } else if (top && right) {
+    //     // top right
+    //     new_velocity_x = -1 * horizantally
+    //     new_velocity_y = 1 * vertically
+    // } else if (bottom && left) {
+    //     // bottom left
+    //     new_velocity_x = 1 * horizantally
+    //     new_velocity_y = -1 * vertically
+    // } else if (bottom && right) {
+    //     // bottom right
+    //     new_velocity_x = -1 * horizantally
+    //     new_velocity_y = -1 * vertically
+    // }
+
+    // Astroids Target: Player
+    new_velocity_x = (player.position.x - new_position_x) / canvas.width * ASTROID_VELOCITY
+    new_velocity_y = (player.position.y - new_position_y) / canvas.height * ASTROID_VELOCITY
+
+
+
+    astroids.push(
+        new Astroid({
+            position: {
+                x: new_position_x,
+                y: new_position_y
+            },
+            velocity: {
+                x: new_velocity_x,
+                y: new_velocity_y
+            },
+            radius: new_radius
+        })
+    )
+
+    // console.log(horizantally)
+    // console.log(vertically)
+    // console.log(astroids)
+}, 3000)
 
 function animate() {
     window.requestAnimationFrame(animate)
@@ -130,6 +238,24 @@ function animate() {
 
         if (isOutLeft || isOutRihgt || isOutUp || isOutDown) {
             projectiles.splice(i, 1)
+        }
+    }
+
+    for (let i = astroids.length - 1; i >= 0; i--) {
+        const curr_astroid = astroids[i]
+        curr_astroid.update()
+
+        const curr_positionX = curr_astroid.position.x
+        const curr_positionY = curr_astroid.position.y
+        const curr_radius = curr_astroid.radius
+
+        const isOutLeft = curr_positionX + curr_radius <= 0
+        const isOutRihgt = curr_positionX - curr_radius >= canvas.width
+        const isOutUp = curr_positionY + curr_radius <= 0
+        const isOutDown = curr_positionY - curr_radius >= canvas.height
+
+        if (isOutLeft || isOutRihgt || isOutUp || isOutDown) {
+            astroids.splice(i, 1)
         }
     }
 
