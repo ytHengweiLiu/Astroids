@@ -10,9 +10,7 @@ const FRICTION = 0.97
 const projectiles = []
 const astroids = []
 
-let joystickActive = false;
-let joystickAngle = 0;
-let joystickMagnitude = 0; // For movement strength
+let lastTouchTime = 0
 
 canvas.width = window.innerWidth
 canvas.height = window.innerHeight
@@ -20,12 +18,11 @@ canvas.height = window.innerHeight
 c.fillStyle = 'black'
 c.fillRect(0, 0, canvas.width, canvas.height)
 
-// Touch Controls
-const joystick = {
-    base: { x: 100, y: canvas.height - 150, radius: 50 },
-    thumb: { x: 100, y: canvas.height - 150, radius: 30 },
-    active: false,
-};
+const buttons = {
+    w: { x: canvas.width / 2 - 50, y: canvas.height - 200, width: 50, height: 50, pressed: false },
+    a: { x: canvas.width / 2 - 120, y: canvas.height - 130, width: 50, height: 50, pressed: false },
+    d: { x: canvas.width / 2 + 20, y: canvas.height - 130, width: 50, height: 50, pressed: false },
+}
 
 class Player {
     constructor({ position, velocity}) {
@@ -140,6 +137,64 @@ const player = new Player({
 
 player.draw()
 
+function drawButtons() {
+    // Draw W button
+    c.fillStyle = buttons.w.pressed ? 'gray' : 'white'
+    c.fillRect(buttons.w.x, buttons.w.y, buttons.w.width, buttons.w.height)
+    c.fillStyle = 'black'
+    c.font = '30px Arial'
+    c.fillText('W', buttons.w.x + 15, buttons.w.y + 35)
+
+    // Draw A button
+    c.fillStyle = buttons.a.pressed ? 'gray' : 'white'
+    c.fillRect(buttons.a.x, buttons.a.y, buttons.a.width, buttons.a.height)
+    c.fillStyle = 'black'
+    c.fillText('A', buttons.a.x + 15, buttons.a.y + 35)
+
+    // Draw D button
+    c.fillStyle = buttons.d.pressed ? 'gray' : 'white'
+    c.fillRect(buttons.d.x, buttons.d.y, buttons.d.width, buttons.d.height)
+    c.fillStyle = 'black'
+    c.fillText('D', buttons.d.x + 15, buttons.d.y + 35)
+}
+
+function handleButtonPress(x, y) {
+    for (const key in buttons) {
+        const button = buttons[key]
+        if (x > button.x &&
+            x < button.x + button.width &&
+            y > button.y &&
+            y < button.y + button.height)
+        {
+            button.pressed = true
+            if (key === 'w') keys.w.pressed = true
+            if (key === 'a') keys.a.pressed = true
+            if (key === 'd') keys.d.pressed = true
+            return
+        }
+    }
+
+    projectiles.push(new Projectile({
+        position: {
+            x: player.position.x + (player.radius / 2.0) * Math.sin(player.rotation),
+            y: player.position.y - (player.radius / 2.0) * Math.cos(player.rotation)
+        },
+        velocity: {
+            x: Math.sin(player.rotation) * PROJECTILE_VELOCITY,
+            y: - Math.cos(player.rotation) * PROJECTILE_VELOCITY
+        }
+    }))
+}
+
+function handleButtonRelease() {
+    for (const key in buttons) {
+        buttons[key].pressed = false
+        if (key === 'w') keys.w.pressed = false
+        if (key === 'a') keys.a.pressed = false
+        if (key === 'd') keys.d.pressed = false
+    }
+}
+
 const keys = {
     w: {
         pressed: false
@@ -247,39 +302,13 @@ function collision (projectile, astroid) {
     return false
 }
 
-// Draw Joystick
-function drawJoystick() {
-    // Draw base circle
-    c.beginPath();
-    c.arc(joystick.base.x, joystick.base.y, joystick.base.radius, 0, Math.PI * 2);
-    c.closePath();
-    c.strokeStyle = 'white';
-    c.stroke();
-
-    // Draw thumbstick circle
-    c.beginPath();
-    c.arc(joystick.thumb.x, joystick.thumb.y, joystick.thumb.radius, 0, Math.PI * 2);
-    c.closePath();
-    c.fillStyle = 'white';
-    c.fill();
-}
-
 function animate() {
     const curr_animation = window.requestAnimationFrame(animate)
     c.fillStyle = 'black'
     c.fillRect(0, 0, canvas.width, canvas.height)
 
     player.update()
-    drawJoystick();
-
-    // Update Player Movement
-    if (joystick.active) {
-        player.velocity.x = Math.cos(joystickAngle) * PLANE_VELOCITY * joystickMagnitude;
-        player.velocity.y = -Math.sin(joystickAngle) * PLANE_VELOCITY * joystickMagnitude;
-    } else {
-        player.velocity.x *= FRICTION;
-        player.velocity.y *= FRICTION;
-    }
+    drawButtons()
 
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const curr_projectile = projectiles[i]
@@ -351,9 +380,9 @@ animate()
 
 // window.addEventListener('keydown', function(e) {
 //     if(e.keyCode == 32 && e.target == document.body) {
-//       e.preventDefault();
+//       e.preventDefault()
 //     }
-// });
+// })
 
 window.addEventListener('keydown', (event) => {
     switch (event.code) {
@@ -406,55 +435,24 @@ window.addEventListener('keyup', (event) => {
     }
 })
 
-
-// Handle Touch Start
+// Handle touch events
 canvas.addEventListener('touchstart', (event) => {
-    const touchX = event.touches[0].clientX;
-    const touchY = event.touches[0].clientY;
+    const currentTime = new Date().getTime()
+    const timeDifference = currentTime - lastTouchTime
 
-    // Activate joystick if touch is inside base circle
-    const dx = touchX - joystick.base.x;
-    const dy = touchY - joystick.base.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance <= joystick.base.radius) {
-        joystick.active = true;
+    if (timeDifference < 300) {
+        // Prevent double-tap zoom
+        event.preventDefault()
     }
-});
 
-// Handle Touch Move
-canvas.addEventListener('touchmove', (event) => {
-    if (joystick.active) {
-        const touchX = event.touches[0].clientX;
-        const touchY = event.touches[0].clientY;
+    lastTouchTime = currentTime
 
-        // Calculate distance and angle from the base
-        const dx = touchX - joystick.base.x;
-        const dy = touchY - joystick.base.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+    const touchX = event.touches[0].clientX
+    const touchY = event.touches[0].clientY
 
-        // Restrict the thumbstick within the base circle
-        if (distance <= joystick.base.radius) {
-            joystick.thumb.x = touchX;
-            joystick.thumb.y = touchY;
-            joystickMagnitude = distance / joystick.base.radius;
-        } else {
-            const angle = Math.atan2(dy, dx);
-            joystick.thumb.x = joystick.base.x + Math.cos(angle) * joystick.base.radius;
-            joystick.thumb.y = joystick.base.y + Math.sin(angle) * joystick.base.radius;
-            joystickMagnitude = 1;
-        }
+    handleButtonPress(touchX, touchY)
+})
 
-        joystickAngle = Math.atan2(joystick.thumb.y - joystick.base.y, joystick.thumb.x - joystick.base.x);
-    }
-});
-
-// Handle Touch End
 canvas.addEventListener('touchend', () => {
-    joystick.active = false;
-    joystick.thumb.x = joystick.base.x;
-    joystick.thumb.y = joystick.base.y;
-    joystickMagnitude = 0;
-    player.velocity.x = 0;
-    player.velocity.y = 0;
-});
+    handleButtonRelease()
+})
