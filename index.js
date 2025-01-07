@@ -32,6 +32,7 @@ class Player {
         this.position = position
         this.velocity = velocity
         this.rotation = 0
+        this.radius = 15
     }
 
     draw() {
@@ -43,32 +44,40 @@ class Player {
         c.rotate(this.rotation)
         c.translate(-positionX, -positionY)
 
-        c.beginPath()
-        c.moveTo(positionX, positionY + 10)
-        c.lineTo(positionX - 7, positionY + 17)
-        c.lineTo(positionX - 7, positionY + 11)
-        c.lineTo(positionX - 3, positionY + 8)
-        c.lineTo(positionX - 20, positionY + 8)
-        c.lineTo(positionX - 20, positionY + 3)
-        c.lineTo(positionX - 5, positionY - 5)
-        c.lineTo(positionX, positionY - 30)
-        c.moveTo(positionX, positionY + 10)
-        c.lineTo(positionX + 7, positionY + 17)
-        c.lineTo(positionX + 7, positionY + 11)
-        c.lineTo(positionX + 3, positionY + 8)
-        c.lineTo(positionX + 20, positionY + 8)
-        c.lineTo(positionX + 20, positionY + 3)
-        c.lineTo(positionX + 5, positionY - 5)
-        c.lineTo(positionX, positionY - 30)
-        c.lineTo(positionX, positionY - 40)
-        c.strokeStyle = 'white'
-        c.stroke()
+        // draw a fight plan
+        // c.beginPath()
+        // c.moveTo(positionX, positionY + 10)
+        // c.lineTo(positionX - 7, positionY + 17)
+        // c.lineTo(positionX - 7, positionY + 11)
+        // c.lineTo(positionX - 3, positionY + 8)
+        // c.lineTo(positionX - 20, positionY + 8)
+        // c.lineTo(positionX - 20, positionY + 3)
+        // c.lineTo(positionX - 5, positionY - 5)
+        // c.lineTo(positionX, positionY - 30)
+        // c.moveTo(positionX, positionY + 10)
+        // c.lineTo(positionX + 7, positionY + 17)
+        // c.lineTo(positionX + 7, positionY + 11)
+        // c.lineTo(positionX + 3, positionY + 8)
+        // c.lineTo(positionX + 20, positionY + 8)
+        // c.lineTo(positionX + 20, positionY + 3)
+        // c.lineTo(positionX + 5, positionY - 5)
+        // c.lineTo(positionX, positionY - 30)
+        // c.lineTo(positionX, positionY - 40)
+        // c.strokeStyle = 'white'
+        // c.stroke()
 
         c.beginPath()
-        c.arc(positionX, positionY, 3, 0, Math.PI * 2)
+        c.arc(positionX, positionY, this.radius, 0, Math.PI * 2)
         c.closePath()
         c.fillStyle = 'red'
         c.fill()
+
+        c.beginPath()
+        c.arc(positionX, positionY - 12, 6, 0, Math.PI * 2)
+        c.closePath()
+        c.fillStyle = 'black'
+        c.fill()
+
 
         c.restore()
     }
@@ -84,14 +93,14 @@ class Projectile {
     constructor({position, velocity}) {
         this.position = position
         this.velocity = velocity
-        this.radius = 5
+        this.radius = 6
     }
 
     draw() {
         c.beginPath()
         c.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2)
         c.closePath()
-        c.fillStyle = 'white'
+        c.fillStyle = 'red'
         c.fill()
     }
 
@@ -143,7 +152,7 @@ const keys = {
     }
 }
 
-window.setInterval(() => {
+const curr_interval = window.setInterval(() => {
     const index =  Math.floor(Math.random() * 4)
     let new_position_x, new_position_y
     let new_velocity_x, new_velocity_y
@@ -224,7 +233,7 @@ window.setInterval(() => {
 
     // console.log(horizantally)
     // console.log(vertically)
-    // console.log(astroids)
+    console.log(astroids)
 }, 3000)
 
 
@@ -256,14 +265,14 @@ function drawJoystick() {
 }
 
 function animate() {
-    window.requestAnimationFrame(animate)
+    const curr_animation = window.requestAnimationFrame(animate)
     c.fillStyle = 'black'
     c.fillRect(0, 0, canvas.width, canvas.height)
 
     player.update()
     drawJoystick();
 
-        // Update Player Movement
+    // Update Player Movement
     if (joystick.active) {
         player.velocity.x = Math.cos(joystickAngle) * PLANE_VELOCITY * joystickMagnitude;
         player.velocity.y = -Math.sin(joystickAngle) * PLANE_VELOCITY * joystickMagnitude;
@@ -306,6 +315,11 @@ function animate() {
         const curr_astroid = astroids[i]
         curr_astroid.update()
 
+        if (collision(player, curr_astroid)) {
+            window.cancelAnimationFrame(curr_animation)
+            clearInterval(curr_interval)   
+        }
+
         const curr_positionX = curr_astroid.position.x
         const curr_positionY = curr_astroid.position.y
         const curr_radius = curr_astroid.radius
@@ -335,6 +349,12 @@ function animate() {
 
 animate()
 
+// window.addEventListener('keydown', function(e) {
+//     if(e.keyCode == 32 && e.target == document.body) {
+//       e.preventDefault();
+//     }
+// });
+
 window.addEventListener('keydown', (event) => {
     switch (event.code) {
         case 'KeyW':
@@ -350,11 +370,12 @@ window.addEventListener('keydown', (event) => {
             keys.d.pressed = true
             break
         case 'Space':
+            if (event.target == document.body) event.preventDefault()
             if (event.repeat) break
             projectiles.push(new Projectile({
                 position: {
-                    x: player.position.x + 40 * Math.sin(player.rotation),
-                    y: player.position.y - 40 * Math.cos(player.rotation)
+                    x: player.position.x + (player.radius / 2.0) * Math.sin(player.rotation),
+                    y: player.position.y - (player.radius / 2.0) * Math.cos(player.rotation)
                 },
                 velocity: {
                     x: Math.sin(player.rotation) * PROJECTILE_VELOCITY,
