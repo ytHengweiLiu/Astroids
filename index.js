@@ -228,6 +228,16 @@ window.setInterval(() => {
 }, 3000)
 
 
+function collision (projectile, astroid) {
+    const diffX = astroid.position.x - projectile.position.x
+    const diffY = astroid.position.y - projectile.position.y
+    const distance = Math.sqrt(diffX * diffX + diffY * diffY)
+
+    if (distance <= projectile.radius + astroid.radius) return true
+
+    return false
+}
+
 // Draw Joystick
 function drawJoystick() {
     // Draw base circle
@@ -277,7 +287,19 @@ function animate() {
 
         if (isOutLeft || isOutRihgt || isOutUp || isOutDown) {
             projectiles.splice(i, 1)
+        } else {
+            for (let j = astroids.length - 1; j >= 0; j--) {
+                if (collision(projectiles[i], astroids[j])) {
+                    projectiles.splice(i, 1)
+                    if (astroids[j].radius >= 30) {
+                        astroids[j].radius -= 20
+                    } else {
+                        astroids.splice(j, 1)
+                    }
+                }
+            }    
         }
+
     }
 
     for (let i = astroids.length - 1; i >= 0; i--) {
@@ -328,6 +350,7 @@ window.addEventListener('keydown', (event) => {
             keys.d.pressed = true
             break
         case 'Space':
+            if (event.repeat) break
             projectiles.push(new Projectile({
                 position: {
                     x: player.position.x + 40 * Math.sin(player.rotation),
